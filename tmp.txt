@@ -1,0 +1,60 @@
+const Post = require("../../models/Post");
+const { ADMIN_ID, BOT_TOKEN } = require("../../config/env");
+const { downloadImageBuffer, escapeHtml } = require("../utils");
+
+const generateCode = () => Math.floor(10000 + Math.random() * 90000).toString();
+
+module.exports = async (ctx) => {
+  const sessionPost = ctx.session.post || ctx.session.sellPost;
+
+  if (!sessionPost) {
+    await ctx.answerCbQuery?.("Ma'lumot topilmadi, qayta urinib ko'ring.");
+    return;
+  }
+
+  // Normalize photos to file_path (Telegram API wants path, not file_id, for download)
+  const normalizedPhotos = [];
+  for (const p of sessionPost.photos || []) {
+    if (!p) continue;
+    if (p.includes("/")) {
+      normalizedPhotos.push(p);
+      continue;
+    }
+    const file = await ctx.telegram.getFile(p);
+    if (file?.file_path) normalizedPhotos.push(file.file_path);
+  }
+
+  const postData = {
+    type: sessionPost.type || "sell",
+    photos: normalizedPhotos,
+    title: sessionPost.title,
+    condition: sessionPost.condition,
+    price: sessionPost.price,
+    city: sessionPost.city,
+    contact: sessionPost.contact,
+    description: sessionPost.description,
+    userId: ctx.from.id,
+    username: ctx.from.username || null,
+    status: "pending",
+    uniqueCode: generateCode(),
+  };
+
+  try {
+    const saved = await Post.create(postData);
+
+    if (!postData.photos.length) {
+      await ctx.reply("⚠️ Rasm topilmadi, qayta yuboring.");
+      return;
+    }
+
+    // Уведомляем админа без кнопок (подтверждение — только через админ-панель)
+    const safe = (t) => escapeHtml(t || "");
+    // Faqat foydalanuvchiga tasdiq xabari, admin panelda tasdiqlanadi
+    await ctx.editMessageText("✅ E’lon qabul qilindi, tez orada kanalga qo‘yiladi.");
+    ctx.session = {};
+  } catch (err) {
+    console.error("send_for_approval action error:", err);
+    await ctx.reply("❌ Xatolik: e’lonni yuborib bo‘lmadi.");
+  }
+};
+
