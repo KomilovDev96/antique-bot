@@ -1,0 +1,35 @@
+services:
+  mongo:
+    image: mongo:7
+    restart: unless-stopped
+    volumes:
+      - mongo_data:/data/db
+    ports:
+      - "27017:27017"
+
+  backend:
+    build: .
+    restart: unless-stopped
+    env_file:
+      - env.local
+    environment:
+      MONGO_URI: mongodb://mongo:27017/antikBot
+      PORT: 5000
+      ADMIN_PANEL_ORIGIN: http://localhost:8080
+    depends_on:
+      - mongo
+    ports:
+      - "5050:5000"
+    volumes:
+      - ./uploads:/app/uploads
+
+  admin-panel:
+    build: ./admin-panel
+    restart: unless-stopped
+    depends_on:
+      - backend
+    ports:
+      - "8080:80"
+
+volumes:
+  mongo_data:

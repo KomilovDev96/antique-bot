@@ -1,0 +1,2 @@
+No automated tests in either package. Treat backend work as done after: manual `npm run dev` boot with no console errors, and if API/bot behavior changed, exercise it (curl the endpoint / trigger the bot command).
+Treat admin-panel work as done after: `npm run lint --prefix admin-panel` passes, and `npm run build --prefix admin-panel` succeeds if the change could affect the production bundle.

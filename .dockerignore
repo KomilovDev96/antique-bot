@@ -1,0 +1,14 @@
+node_modules
+npm-debug.log
+.git
+.gitignore
+admin-panel
+uploads
+env.local
+.env
+.env.*
+tmp.txt
+tmp_est.js
+tmp_estctrl.js
+session.json
+NOTES.md
