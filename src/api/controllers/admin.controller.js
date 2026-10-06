@@ -4,9 +4,64 @@ const publishPostToTelegram = require("../../utils/publishPost");
 const postService = require("../../bot/services/post.service");
 const bot = require("../../bot");
 const adminService = require("../../bot/services/admin.service");
+const CollectorUser = require('../../models/CollectorUser');
+const UserActivity = require('../../models/UserActivity');
 
 exports.getDashboard = async (req, res) => {
   res.send('Admin Dashboard');
+};
+
+const userProjection = 'email name phone phoneVerified identityVerified telegramUsername emailVerified categoryIds createdAt updatedAt lastLoginAt lastLoginIp lastLoginUserAgent lastSeenAt lastSeenIp lastSeenUserAgent loginCount';
+
+exports.getUsers = async (req, res) => {
+  try {
+    const inactiveDays = Math.min(Math.max(Number(req.query.inactiveDays) || 30, 1), 3650);
+    const limit = Math.min(Math.max(Number(req.query.limit) || 500, 1), 5000);
+    const filter = {};
+    if (req.query.status === 'never') filter.lastLoginAt = null;
+    if (req.query.status === 'inactive') filter.$or = [{ lastSeenAt: null }, { lastSeenAt: { $lt: new Date(Date.now() - inactiveDays * 86400000) } }];
+    if (req.query.search) {
+      const search = String(req.query.search).slice(0, 100);
+      filter.$and = [{ $or: [{ email: new RegExp(search, 'i') }, { name: new RegExp(search, 'i') }, { phone: new RegExp(search, 'i') }] }];
+    }
+    const [items, total] = await Promise.all([
+      CollectorUser.find(filter).select(userProjection).sort({ lastSeenAt: -1, createdAt: -1 }).limit(limit).lean(),
+      CollectorUser.countDocuments(filter),
+    ]);
+    res.json({ items, total, inactiveDays });
+  } catch (error) { res.status(500).json({ message: error.message }); }
+};
+
+exports.getAnalytics = async (req, res) => {
+  try {
+    const days = Math.min(Math.max(Number(req.query.days) || 30, 1), 365);
+    const now = Date.now();
+    const [totalUsers, active24h, active7d, active30d, neverLogged, inactive, totalEvents, featureUsage, topIps, dailyActive, recentActivity] = await Promise.all([
+      CollectorUser.countDocuments(),
+      CollectorUser.countDocuments({ lastSeenAt: { $gte: new Date(now - 86400000) } }),
+      CollectorUser.countDocuments({ lastSeenAt: { $gte: new Date(now - 7 * 86400000) } }),
+      CollectorUser.countDocuments({ lastSeenAt: { $gte: new Date(now - 30 * 86400000) } }),
+      CollectorUser.countDocuments({ lastLoginAt: null }),
+      CollectorUser.countDocuments({ $or: [{ lastSeenAt: null }, { lastSeenAt: { $lt: new Date(now - days * 86400000) } }] }),
+      UserActivity.countDocuments({ createdAt: { $gte: new Date(now - days * 86400000) } }),
+      UserActivity.aggregate([{ $match: { createdAt: { $gte: new Date(now - days * 86400000) } } }, { $group: { _id: '$feature', count: { $sum: 1 }, uniqueUsers: { $addToSet: '$userId' } } }, { $project: { _id: 0, feature: '$_id', count: 1, uniqueUsers: { $size: '$uniqueUsers' } } }, { $sort: { count: -1 } }, { $limit: 20 }]),
+      UserActivity.aggregate([{ $match: { createdAt: { $gte: new Date(now - days * 86400000) }, ip: { $nin: [null, ''] } } }, { $group: { _id: '$ip', count: { $sum: 1 }, uniqueUsers: { $addToSet: '$userId' }, lastSeenAt: { $max: '$createdAt' } } }, { $project: { _id: 0, ip: '$_id', count: 1, uniqueUsers: { $size: '$uniqueUsers' }, lastSeenAt: 1 } }, { $sort: { count: -1 } }, { $limit: 20 }]),
+      UserActivity.aggregate([{ $match: { createdAt: { $gte: new Date(now - days * 86400000) } } }, { $group: { _id: { $dateToString: { format: '%Y-%m-%d', date: '$createdAt', timezone: 'Asia/Tashkent' } }, uniqueUsers: { $addToSet: '$userId' }, events: { $sum: 1 } } }, { $project: { _id: 0, date: '$_id', uniqueUsers: { $size: '$uniqueUsers' }, events: 1 } }, { $sort: { date: 1 } }]),
+      UserActivity.find({}).sort({ createdAt: -1 }).limit(100).lean(),
+    ]);
+    const ids = recentActivity.map(item => String(item.userId));
+    const users = await CollectorUser.find({ _id: { $in: ids } }).select('email name').lean();
+    const userMap = new Map(users.map(user => [String(user._id), user]));
+    res.json({
+      periodDays: days,
+      summary: { totalUsers, active24h, active7d, active30d, neverLogged, inactive },
+      totalEvents,
+      featureUsage,
+      topIps,
+      dailyActive,
+      recentActivity: recentActivity.map(item => ({ ...item, user: userMap.get(String(item.userId)) || null })),
+    });
+  } catch (error) { res.status(500).json({ message: error.message }); }
 };
 
 exports.getAllPosts = async (req, res) => {

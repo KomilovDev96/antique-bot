@@ -28,7 +28,7 @@ export default function Estimates() {
         mutationFn: async ({ id, reply }) =>
             axiosClient.patch(`/admin/estimates/${id}/reply`, { reply }),
         onSuccess: () => {
-            message.success("Javob yuborildi va foydalanuvchiga yetkazildi.");
+            message.success("Ответ отправлен и доставлен пользователю.");
             setReplyModal(null);
             setReplyText("");
             queryClient.invalidateQueries({ queryKey: ["estimates"] });
@@ -37,27 +37,27 @@ export default function Estimates() {
 
     const columns = [
         {
-            title: "Foydalanuvchi",
+            title: "Пользователь",
             dataIndex: "username",
-            render: (text) => (text ? "@" + text : "Anonim"),
+            render: (text) => (text ? "@" + text : "Аноним"),
         },
         {
-            title: "Tavsif",
+            title: "Описание",
             dataIndex: "description",
             ellipsis: true,
         },
         {
-            title: "Status",
+            title: "Статус",
             dataIndex: "status",
             render: (text) => (
-                <Tag color={text === "replied" ? "green" : "orange"}>{text}</Tag>
+                <Tag color={text === "replied" ? "green" : "orange"}>{text === "replied" ? "Получен ответ" : "Ожидает ответа"}</Tag>
             ),
         },
         {
-            title: "Amallar",
+            title: "Действия",
             render: (_, record) => (
                 <Button onClick={() => { setReplyModal(record); setReplyText(""); }}>
-                    ✉️ Javob berish
+                    ✉️ Ответить
                 </Button>
             ),
         },
@@ -65,7 +65,7 @@ export default function Estimates() {
 
     return (
         <div>
-            <h2 style={{ marginBottom: 16 }}>Baholash so‘rovlari</h2>
+            <h2 style={{ marginBottom: 16 }}>Запросы на оценку</h2>
             <Table
                 loading={isLoading}
                 rowKey="_id"
@@ -98,10 +98,10 @@ export default function Estimates() {
                                     ))}
                                 </div>
                                 <div>
-                                    <b>Tavsif:</b> {record.description}
+                                    <b>Описание:</b> {record.description}
                                     {record.adminReply && (
                                         <p>
-                                            <b>Admin javobi:</b> {record.adminReply}
+                                            <b>Ответ администратора:</b> {record.adminReply}
                                         </p>
                                     )}
                                 </div>
@@ -114,17 +114,17 @@ export default function Estimates() {
             <Modal
                 open={!!replyModal}
                 onCancel={() => setReplyModal(null)}
-                title={`@${replyModal?.username || "anonim"} so‘roviga javob`}
+                title={`Ответ на запрос @${replyModal?.username || "анонима"}`}
                 onOk={() =>
                     replyMutation.mutate({ id: replyModal._id, reply: replyText })
                 }
-                okText="Yuborish"
+                okText="Отправить"
             >
-                <p><b>Foydalanuvchi:</b> {replyModal?.username ? `@${replyModal.username}` : "anonim"}</p>
+                <p><b>Пользователь:</b> {replyModal?.username ? `@${replyModal.username}` : "аноним"}</p>
                 <p><b>ID:</b> {replyModal?._id}</p>
                 <Input.TextArea
                     rows={4}
-                    placeholder="Masalan: Taxminan 250 ming so‘m..."
+                    placeholder="Например: примерно 250 000 сум…"
                     value={replyText}
                     onChange={(e) => setReplyText(e.target.value)}
                 />

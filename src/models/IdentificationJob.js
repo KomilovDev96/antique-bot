@@ -1,0 +1,3 @@
+const mongoose = require('mongoose');
+const identificationJobSchema = new mongoose.Schema({ ownerId: { type: mongoose.Schema.Types.ObjectId, ref: 'CollectorUser', required: true, index: true }, mediaIds: [String], description: String, allowWeb: Boolean, status: { type: String, enum: ['queued', 'reading_image', 'searching_collection', 'searching_catalog', 'comparing', 'checking_sources', 'completed', 'failed'], default: 'queued' }, candidates: { type: Array, default: [] }, sources: { type: Array, default: [] }, error: String, canSearchWeb: { type: Boolean, default: false } }, { timestamps: true });
+module.exports = mongoose.model('IdentificationJob', identificationJobSchema);

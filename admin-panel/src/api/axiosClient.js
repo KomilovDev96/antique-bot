@@ -1,7 +1,9 @@
 import axios from "axios";
 
 const axiosClient = axios.create({
-  baseURL: "http://localhost:5050/api", // backend
+  // Use an explicit build-time URL when provided; otherwise route through the
+  // same origin so the panel also works from another device on the LAN.
+  baseURL: import.meta.env.VITE_API_BASE || "/api",
 });
 
 axiosClient.interceptors.request.use((config) => {

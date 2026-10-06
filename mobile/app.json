@@ -1,0 +1,47 @@
+{
+  "expo": {
+    "name": "ANT/GOLD — Antique AI",
+    "slug": "mobile-antique-ai",
+    "version": "0.1.0",
+    "scheme": "antiqueai",
+    "orientation": "default",
+    "userInterfaceStyle": "automatic",
+    "icon": "./assets/antgold-icon.png",
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "uz.antique.collector"
+    },
+    "android": {
+      "package": "uz.antique.collector"
+    },
+    "web": {
+      "bundler": "metro",
+      "output": "single",
+      "name": "ANT/GOLD"
+    },
+    "plugins": [
+      "expo-router",
+      "expo-secure-store",
+      "expo-font",
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "Разрешите камеру, чтобы сфотографировать предмет для определения.",
+          "recordAudioAndroid": false
+        }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Выберите фотографии предмета из вашей галереи.",
+          "microphonePermission": false
+        }
+      ],
+      "expo-notifications",
+      "expo-image"
+    ],
+    "experiments": {
+      "typedRoutes": true
+    }
+  }
+}

@@ -14,9 +14,11 @@ const cancelAction = require('./actions/cancel.action');
 const soldAction = require('./actions/sold.action');
 const foundAction = require('./actions/found.action');
 const searchByCodeAction = require('./actions/searchByCode.action');
+const linkCommand = require('./commands/link.command');
 
 module.exports = (bot) => {
   bot.start(startCommand);
+  bot.command('link', linkCommand);
   bot.hears("📦 Mening e'lonlarim", myPostsCommand);
   bot.hears("🏺 Sotmoqchiman", startSellFlow);
   bot.hears("💰 Sotib olmoqchiman", startBuyFlow);
@@ -45,5 +47,4 @@ module.exports = (bot) => {
     }
   });
 };
-
 

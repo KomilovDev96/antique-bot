@@ -1,0 +1,34 @@
+import { useState } from 'react';
+import { useMutation, useQuery } from '@tanstack/react-query';
+import { router } from 'expo-router';
+import { authApi, catalogApi, collectionApi, profileApi } from '../shared/api/services';
+import { useSession } from '../shared/api/session';
+import { queryClient } from '../shared/api/query';
+import { registerNotifications, unregisterNotifications } from '../features/notifications/register';
+import { usePreferences } from '../shared/lib/preferences';
+import { useI18n } from '../shared/lib/i18n';
+import { AuthGate } from '../widgets/AuthGate';
+import { Avatar, Button, Card, Chip, ErrorState, Field, InlineError, LinkButton, LoadingSkeleton, Row, Screen, ScreenHeader, SegmentedControl, Text } from '../shared/ui/core';
+import { useTheme } from '../shared/ui/theme';
+export function ProfileScreen() { return <AuthGate title="Профиль"><ProfileContent /></AuthGate>; }
+function ProfileContent() {
+  const { colors } = useTheme(); const session = useSession(s => s.session); const [name, setName] = useState(session?.user.name ?? ''); const [ids, setIds] = useState(session?.user.categoryIds ?? []); const [telegramCode, setTelegramCode] = useState('');
+  const categories = useQuery({ queryKey: ['categories'], queryFn: ({ signal }) => catalogApi.categories(signal) });
+  const stats = useQuery({ queryKey: ['statistics', session?.user.id], queryFn: ({ signal }) => collectionApi.statistics(signal) });
+  const save = useMutation({ mutationFn: () => profileApi.update({ name: name.trim(), categoryIds: ids }), onSuccess: async user => { const current = useSession.getState().session; if (current) await useSession.getState().setSession({ ...current, user }); void queryClient.invalidateQueries(); } });
+  const link = useMutation({ mutationFn: () => profileApi.linkTelegram(telegramCode.trim()), onSuccess: async user => { const current = useSession.getState().session; if (current) await useSession.getState().setSession({ ...current, user }); setTelegramCode(''); } });
+  return <Screen><ScreenHeader title="Ваш профиль" back /><Row><Avatar name={session?.user.name || 'К'} /><Card style={{ flex: 1 }}><Text variant="heading">{session?.user.name || 'Коллекционер'}</Text><Text variant="caption" color={colors.muted}>{session?.user.email}</Text></Card></Row><Field label="Имя коллекционера" value={name} onChangeText={setName} maxLength={80} /><Text variant="heading">Мои интересы</Text><InlineError error={categories.error} /><Row style={{ flexWrap: 'wrap' }}>{categories.data?.map(c => <Chip key={c.id} label={c.name} selected={ids.includes(c.id)} onPress={() => setIds(prev => prev.includes(c.id) ? prev.filter(id => id !== c.id) : [...prev, c.id])} />)}</Row><InlineError error={save.error} />{save.isSuccess ? <Text color={colors.green}>Профиль сохранён</Text> : null}<Button title="Сохранить профиль" disabled={!name.trim()} loading={save.isPending} onPress={() => save.mutate()} /><Card><Text variant="heading">Связать Telegram</Text><Text color={colors.muted}>В Telegram-боте отправьте команду /link, затем введите полученный код. Заявки из бота появятся в приложении.</Text><Field label="Код связи" value={telegramCode} onChangeText={setTelegramCode} autoCapitalize="characters" maxLength={8} /><InlineError error={link.error} />{link.isSuccess ? <Text color={colors.green}>Telegram подключён.</Text> : null}<Button title="Подключить Telegram" disabled={telegramCode.trim().length < 6} loading={link.isPending} onPress={() => link.mutate()} /></Card>{stats.isPending ? <LoadingSkeleton /> : stats.isError ? <ErrorState error={stats.error} retry={() => void stats.refetch()} /> : <Card><Text variant="heading">Ваша коллекция в цифрах</Text><Text>Предметов: {stats.data.total}</Text><Text>Категорий: {stats.data.categories} · Стран: {stats.data.countries}</Text>{stats.data.goldWeightGrams ? <Text>Общий вес золота: {stats.data.goldWeightGrams} г</Text> : null}{stats.data.silverWeightGrams ? <Text>Общий вес серебра: {stats.data.silverWeightGrams} г</Text> : null}{stats.data.mostCollected ? <Text>Любимая категория: {stats.data.mostCollected}</Text> : null}</Card>}<LinkButton href="/requests" title="Мои заявки" icon="clipboard" /><LinkButton href="/notifications" title="Уведомления" icon="bell" /><LinkButton href="/settings" title="Настройки" icon="settings" /></Screen>;
+}
+export function SettingsScreen() {
+  const { colors } = useTheme(); const theme = usePreferences(s => s.theme); const language = usePreferences(s => s.language); const { t, languageOptions } = useI18n(); const session = useSession(s => s.session); const [logoutNotice, setLogoutNotice] = useState('');
+  const push = useMutation({ mutationFn: registerNotifications });
+  const disablePush = useMutation({ mutationFn: unregisterNotifications });
+  const logout = useMutation({ mutationFn: async () => {
+    if (session) {
+      await unregisterNotifications().catch(() => setLogoutNotice('Не удалось отключить уведомления на сервере.'));
+      await authApi.logout(session.refreshToken).catch(() => setLogoutNotice('Сессия на устройстве удалена. Сервер не подтвердил отзыв удалённой сессии.'));
+    }
+    await queryClient.cancelQueries(); queryClient.clear(); await useSession.getState().setSession(null); router.replace('/home');
+  } });
+  return <Screen><ScreenHeader title={t('settings')} back /><Card><Text variant="heading">{t('appearance')}</Text><SegmentedControl value={theme} onChange={v => usePreferences.getState().setTheme(v as typeof theme)} options={[{ id: 'system', label: t('system') }, { id: 'light', label: t('light') }, { id: 'dark', label: t('dark') }]} /></Card><Card><Text variant="heading">{t('language')}</Text><Text variant="caption" color={colors.muted}>{t('languageDescription')}</Text><SegmentedControl value={language} onChange={v => usePreferences.getState().setLanguage(v as typeof language)} options={languageOptions} /></Card><Card><Text variant="heading">{t('notifications')}</Text><Text color={colors.muted}>{t('notificationsDescription')}</Text><InlineError error={push.error || disablePush.error} />{push.isSuccess ? <Text>{t('notificationsEnabled')}</Text> : disablePush.isSuccess ? <Text>{t('notificationsDisabled')}</Text> : null}<Button title={t('notificationsOn')} disabled={!session} loading={push.isPending} onPress={() => push.mutate()} /><Button title={t('notificationsOff')} variant="ghost" disabled={!session} loading={disablePush.isPending} onPress={() => disablePush.mutate()} /></Card><Card><Text variant="heading">{t('privacy')}</Text><Text color={colors.muted}>{t('privacyBody')}</Text><Text variant="caption" color={colors.muted}>{t('privacyScan')}</Text></Card>{session ? <Button title={t('logout')} variant="danger" loading={logout.isPending} onPress={() => logout.mutate()} /> : <LinkButton href="/auth/login" title={t('signIn')} />}<InlineError error={logout.error} />{logoutNotice ? <Text>{logoutNotice}</Text> : null}</Screen>;
+}

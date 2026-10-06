@@ -26,21 +26,21 @@ export default function Orders() {
   const approveMutation = useMutation({
     mutationFn: (id) => axiosClient.patch(`/admin/orders/${id}/approve`),
     onSuccess: () => {
-      message.success("Buyurtma kanalga joylandi ✅");
+      message.success("Заказ опубликован в канале ✅");
       queryClient.invalidateQueries(["orders"]);
     },
-    onError: () => message.error("Xatolik: buyurtma joylanmadi"),
+    onError: () => message.error("Ошибка: заказ не опубликован"),
   });
 
   const sendMessageMutation = useMutation({
     mutationFn: ({ id, text }) =>
       axiosClient.post(`/admin/orders/${id}/message`, { text }),
     onSuccess: () => {
-      message.success("Xabar yuborildi 💬");
+      message.success("Сообщение отправлено 💬");
       setMsgModal({ visible: false, order: null });
       setMessageText("");
     },
-    onError: () => message.error("Xabar yuborilmadi"),
+    onError: () => message.error("Сообщение не отправлено"),
   });
 
   const handleSendMessage = () => {
@@ -52,11 +52,11 @@ export default function Orders() {
 
   const columns = [
     {
-      title: "🛍️ Narsa nomi",
+      title: "🛍️ Название предмета",
       dataIndex: "itemName",
     },
     {
-      title: "📄 Tavsif",
+      title: "📄 Описание",
       dataIndex: "description",
       render: (t) => t || "-",
     },
@@ -72,11 +72,11 @@ export default function Orders() {
             }/${photoPath}`}
           />
         ) : (
-          <Tag color="default">Yo‘q</Tag>
+          <Tag color="default">Нет</Tag>
         ),
     },
     {
-      title: "👤 Foydalanuvchi",
+      title: "👤 Пользователь",
       dataIndex: "username",
       render: (u, record) =>
         u ? (
@@ -88,20 +88,20 @@ export default function Orders() {
         ),
     },
     {
-      title: "Holat",
+      title: "Статус",
       dataIndex: "status",
       render: (s) => (
         <Tag color={s === "approved" ? "green" : s === "rejected" ? "red" : "gold"}>
           {s === "approved"
-            ? "Tasdiqlangan"
+            ? "Подтверждён"
             : s === "rejected"
-            ? "Rad etilgan"
-            : "Kutilmoqda"}
+            ? "Отклонён"
+            : "Ожидает проверки"}
         </Tag>
       ),
     },
     {
-      title: "⚙️ Amal",
+      title: "⚙️ Действия",
       key: "actions",
       render: (_, record) => (
         <Space>
@@ -111,14 +111,14 @@ export default function Orders() {
               type="primary"
               onClick={() => approveMutation.mutate(record._id)}
             >
-              Tasdiqlash
+              Подтвердить
             </Button>
           )}
           <Button
             icon={<MessageOutlined />}
             onClick={() => setMsgModal({ visible: true, order: record })}
           >
-            Yozish
+            Написать
           </Button>
         </Space>
       ),
@@ -135,7 +135,7 @@ export default function Orders() {
             refetch();
           }}
         >
-          Yangilash
+          Обновить
         </Button>
       </Space>
 
@@ -148,17 +148,17 @@ export default function Orders() {
 
       {/* 💬 Модал для отправки сообщения */}
       <Modal
-        title={`Xabar yuborish: @${msgModal.order?.username || "foydalanuvchi"}`}
+        title={`Сообщение: @${msgModal.order?.username || "пользователь"}`}
         open={msgModal.visible}
         onCancel={() => setMsgModal({ visible: false, order: null })}
         onOk={handleSendMessage}
-        okText="Yuborish"
+        okText="Отправить"
       >
         <Input.TextArea
           rows={4}
           value={messageText}
           onChange={(e) => setMessageText(e.target.value)}
-          placeholder="Xabar matni..."
+          placeholder="Текст сообщения…"
         />
       </Modal>
     </>

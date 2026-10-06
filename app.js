@@ -1,9 +1,10 @@
-require('dotenv').config();
+require('dotenv').config({ path: process.env.ENV_FILE || 'env.local' });
 const express = require('express');
 const cors = require('cors');
 const connectDB = require('./src/config/db');
 const bot = require('./src/bot');
 const apiRouter = require('./src/api'); // New API router
+const mobileRouter = require('./src/mobile/routes');
 const { ADMIN_PANEL_ORIGIN } = require('./src/config/env');
 
 connectDB();
@@ -15,6 +16,9 @@ const allowedOrigins = [
   ADMIN_PANEL_ORIGIN,
   'http://localhost:5173',
   'http://127.0.0.1:5173',
+  'http://localhost:8081',
+  'http://localhost:19006',
+  'http://localhost:19000',
 ].filter(Boolean);
 app.use(cors({
   origin: allowedOrigins,
@@ -23,6 +27,8 @@ app.use(cors({
 
 app.use(express.json()); // Essential for parsing JSON bodies
 app.use('/api', apiRouter); // Mount the new API router
+app.use('/api/mobile/v1', mobileRouter);
+app.use('/uploads', express.static(require('path').join(process.cwd(), 'uploads')));
 
 // Root endpoint for testing API status
 app.get('/', (req, res) => {
@@ -38,24 +44,16 @@ app.use((err, req, res, next) => {
 // Start bot
 bot.launch().then(() => {
   console.log('Bot started');
-  // ВРЕМЕННЫЙ ТЕСТ: Попытка отправить простое текстовое сообщение
-  try {
-    bot.telegram.sendMessage(process.env.CHANNEL_ID, "Тестовое сообщение от бота из app.js!").then(() => {
-      console.log("✅ Тестовое сообщение отправлено успешно.");
-    }).catch((testError) => {
-      console.error("❌ Ошибка при отправке тестового сообщения:", testError);
-    });
-  } catch (e) {
-    console.error("❌ Критическая ошибка при инициализации отправки тестового сообщения:", e);
-  }
 }).catch(err => console.error('Bot launch error:', err));
 
 // Enable graceful stop
-process.once('SIGINT', () => bot.stop('SIGINT'));
-process.once('SIGTERM', () => bot.stop('SIGTERM'));
+const stopBot = signal => {
+  if (bot.botInfo) bot.stop(signal);
+};
+process.once('SIGINT', () => stopBot('SIGINT'));
+process.once('SIGTERM', () => stopBot('SIGTERM'));
 
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
 });
-

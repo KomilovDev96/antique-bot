@@ -1,0 +1,26 @@
+import { useState } from 'react';
+import { Controller, useForm, useWatch } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { z } from 'zod';
+import { useMutation } from '@tanstack/react-query';
+import { router, useLocalSearchParams } from 'expo-router';
+import { requestsApi } from '../shared/api/services';
+import { queryClient } from '../shared/api/query';
+import { newRequestKey } from '../shared/lib/hooks';
+import { CategoryFields } from '../features/catalog/CategoryFields';
+import { useMedia } from '../features/media/useMedia';
+import { MediaPicker } from '../features/media/MediaPicker';
+import { AuthGate } from '../widgets/AuthGate';
+import { Button, Card, Field, InlineError, Screen, ScreenHeader, Text } from '../shared/ui/core';
+const schema = z.object({ title: z.string().trim().min(2, 'Укажите предмет'), categoryId: z.string().min(1, 'Выберите категорию'), description: z.string().trim().min(10, 'Добавьте описание, не менее 10 символов').max(5000), year: z.string(), country: z.string(), condition: z.string(), purpose: z.string(), metal: z.string(), weight: z.string(), diameter: z.string(), mint: z.string(), budget: z.string().refine(v => !v || /^\d+(\.\d{1,2})?$/.test(v), 'Введите число'), currency: z.string().regex(/^[A-Z]{3}$/, 'Трёхбуквенный код валюты, например USD') });
+type Values = z.infer<typeof schema>;
+export function RequestFormScreen({ inspection = false }: { inspection?: boolean }) { return <AuthGate><RequestForm inspection={inspection} /></AuthGate>; }
+function RequestForm({ inspection }: { inspection: boolean }) {
+  const { itemId, listingId } = useLocalSearchParams<{ itemId?: string; listingId?: string }>(); const media = useMedia(); const [attributes, setAttributes] = useState<Record<string, string>>({}); const [photoError, setPhotoError] = useState(''); const [key] = useState(newRequestKey);
+  const { control, handleSubmit, setValue, formState } = useForm<Values>({ resolver: zodResolver(schema), defaultValues: { title: '', categoryId: '', description: '', year: '', country: '', condition: '', purpose: '', metal: '', weight: '', diameter: '', mint: '', budget: '', currency: 'USD' } });
+  const categoryId = useWatch({ control, name: 'categoryId' });
+  const send = useMutation({ mutationFn: async (values: Values) => { const files = await media.uploadAll(); return requestsApi.create({ kind: inspection ? 'inspection' : 'buy', ...values, budget: values.budget ? { amount: values.budget, currency: values.currency } : undefined, attributes: { ...attributes, ...(inspection ? { purpose: values.purpose, metal: values.metal, weight: values.weight, diameter: values.diameter, mint: values.mint } : {}) }, mediaIds: files.map(f => f.id), itemId, listingId }, key); }, onSuccess: result => { void queryClient.invalidateQueries({ queryKey: ['requests'] }); router.replace({ pathname: '/requests/[id]', params: { id: result.id } }); } });
+  const fields: { name: keyof Values; label: string; multiline?: boolean }[] = [{ name: 'title', label: 'Предмет' }, { name: 'description', label: inspection ? 'Что требуется проверить?' : 'Что вы ищете?', multiline: true }, { name: 'year', label: 'Год / период' }, { name: 'country', label: 'Страна' }, { name: 'condition', label: 'Состояние' }, ...(inspection ? [{ name: 'purpose' as const, label: 'Цель оценки: для чего нужно узнать?' }, { name: 'metal' as const, label: 'Металл, необязательно' }, { name: 'weight' as const, label: 'Вес, г, необязательно' }, { name: 'diameter' as const, label: 'Диаметр, мм, необязательно' }, { name: 'mint' as const, label: 'Монетный двор, необязательно' }] : [{ name: 'budget' as const, label: 'Бюджет, необязательно' }, { name: 'currency' as const, label: 'Валюта бюджета' }])];
+  const submit = handleSubmit(async values => { if (inspection && media.count === 0) { setPhotoError('Для профессиональной оценки нужно добавить хотя бы одно фото монеты. Снимите обе стороны и гурт, если возможно.'); return; } setPhotoError(''); send.mutate(values); });
+  return <Screen><ScreenHeader title={inspection ? 'Проверка предмета' : 'Хочу купить'} eyebrow={inspection ? 'ПРОФЕССИОНАЛЬНЫЙ ОСМОТР' : 'ЗАПРОС НА ПОКУПКУ'} back /><Card><Text>{inspection ? 'Фото обязательно. Специалисту желательно видеть лицевую и оборотную стороны, гурт, клейма и важные детали. Металл и остальные поля можно оставить пустыми.' : 'Опишите желаемый предмет. Заявка поможет продавцам предложить подходящие варианты.'}</Text></Card><CategoryFields categoryId={categoryId} setCategoryId={id => setValue('categoryId', id, { shouldValidate: true })} attributes={attributes} setAttributes={setAttributes} />{formState.errors.categoryId ? <Text>{formState.errors.categoryId.message}</Text> : null}{fields.map(f => <Controller key={f.name} name={f.name} control={control} render={({ field, fieldState }) => <Field label={f.label} value={field.value} onChangeText={field.onChange} onBlur={field.onBlur} multiline={f.multiline} error={fieldState.error?.message} />} />)}<MediaPicker media={media} attachments={false} />{photoError ? <Text color="#C85D4A">{photoError}</Text> : null}<InlineError error={send.error} /><Button title="Отправить заявку специалисту" loading={send.isPending} onPress={() => void submit()} /></Screen>;
+}

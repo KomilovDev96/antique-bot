@@ -47,7 +47,7 @@ export default function Posts() {
   const approveMutation = useMutation({
     mutationFn: async (id) => axiosClient.patch(`/admin/posts/${id}/approve`),
     onSuccess: () => {
-      message.success("Tasdiqlandi ✅");
+      message.success("Объявление подтверждено ✅");
       queryClient.invalidateQueries({ queryKey: ["posts"] });
     },
   });
@@ -55,7 +55,7 @@ export default function Posts() {
   const rejectMutation = useMutation({
     mutationFn: async (id) => axiosClient.patch(`/admin/posts/${id}/reject`),
     onSuccess: () => {
-      message.error("Rad etildi ❌");
+      message.error("Объявление отклонено ❌");
       queryClient.invalidateQueries({ queryKey: ["posts"] });
     },
   });
@@ -63,7 +63,7 @@ export default function Posts() {
   const soldMutation = useMutation({
     mutationFn: async (id) => axiosClient.patch(`/admin/posts/${id}/sold`),
     onSuccess: () => {
-      message.success("Sotilgan deb belgilandi");
+      message.success("Объявление отмечено как проданное");
       queryClient.invalidateQueries({ queryKey: ["posts"] });
     },
   });
@@ -71,22 +71,22 @@ export default function Posts() {
   const deleteMutation = useMutation({
     mutationFn: async (id) => axiosClient.delete(`/admin/posts/${id}`),
     onSuccess: () => {
-      message.success("E'lon o'chirildi");
+      message.success("Объявление удалено");
       queryClient.invalidateQueries({ queryKey: ["posts"] });
     },
   });
 
   const columns = [
-    { title: "Nomi", dataIndex: "title", key: "title" },
-    { title: "Narx", dataIndex: "price", key: "price" },
-    { title: "Shahar", dataIndex: "city", key: "city" },
+    { title: "Название", dataIndex: "title", key: "title" },
+    { title: "Цена", dataIndex: "price", key: "price" },
+    { title: "Город", dataIndex: "city", key: "city" },
     {
-      title: "Sana",
+      title: "Дата",
       dataIndex: "createdAt",
       render: (val) => (val ? new Date(val).toLocaleString() : "-"),
     },
     {
-      title: "Holat",
+      title: "Статус",
       dataIndex: "status",
       render: (text) => {
         const color =
@@ -97,22 +97,22 @@ export default function Posts() {
             : text === "sold"
             ? "blue"
             : "red";
-        return <Tag color={color}>{text}</Tag>;
+        return <Tag color={color}>{{ pending: "На проверке", approved: "Подтверждено", rejected: "Отклонено", sold: "Продано" }[text] || text}</Tag>;
       },
     },
     {
-      title: "Amallar",
+      title: "Действия",
       render: (_, record) => (
         <>
           <Button size="small" onClick={() => setPreviewPost(record)} style={{ marginRight: 8 }}>
-            Ko'rish
+            Просмотр
           </Button>
           <Button
             type="link"
             onClick={() => approveMutation.mutate(record._id)}
             disabled={record.status === "approved"}
           >
-            Tasdiqlash
+            Подтвердить
           </Button>
           <Button
             type="link"
@@ -120,19 +120,19 @@ export default function Posts() {
             onClick={() => rejectMutation.mutate(record._id)}
             disabled={record.status === "rejected"}
           >
-            Rad etish
+            Отклонить
           </Button>
           <Button
             type="link"
             onClick={() => soldMutation.mutate(record._id)}
             disabled={record.status === "sold"}
           >
-            Sotilgan deb belgilash
+            Отметить как проданное
           </Button>
           <Popconfirm
-            title="E'lonni o'chirish?"
-            okText="Ha"
-            cancelText="Yo'q"
+            title="Удалить объявление?"
+            okText="Да"
+            cancelText="Нет"
             onConfirm={() => deleteMutation.mutate(record._id)}
           >
             <Button type="text" danger icon={<DeleteOutlined />} />
@@ -152,11 +152,11 @@ export default function Posts() {
             setPagination((p) => ({ ...p, current: 1 }));
           }}
           options={[
-            { label: "Barchasi", value: "all" },
-            { label: "Kutilmoqda", value: "pending" },
-            { label: "Tasdiqlangan", value: "approved" },
-            { label: "Rad etilgan", value: "rejected" },
-            { label: "Sotilgan", value: "sold" },
+            { label: "Все", value: "all" },
+            { label: "На проверке", value: "pending" },
+            { label: "Подтверждённые", value: "approved" },
+            { label: "Отклонённые", value: "rejected" },
+            { label: "Проданные", value: "sold" },
           ]}
           style={{ width: 200 }}
         />
@@ -167,8 +167,8 @@ export default function Posts() {
             setPagination((p) => ({ ...p, current: 1 }));
           }}
           options={[
-            { label: (<span><SortDescendingOutlined /> Yangi → eski</span>), value: "desc" },
-            { label: (<span><SortAscendingOutlined /> Eski → yangi</span>), value: "asc" },
+            { label: (<span><SortDescendingOutlined /> Новые → старые</span>), value: "desc" },
+            { label: (<span><SortAscendingOutlined /> Старые → новые</span>), value: "asc" },
           ]}
           style={{ width: 200 }}
         />
@@ -178,10 +178,10 @@ export default function Posts() {
           onClick={() => {
             queryClient.invalidateQueries(["posts"]);
             refetch();
-            message.success("Ma'lumotlar yangilandi!");
+            message.success("Данные обновлены!");
           }}
         >
-          Yangilash
+          Обновить
         </Button>
       </Space>
 
@@ -208,11 +208,11 @@ export default function Posts() {
       >
         {previewPost ? (
           <>
-            <p><b>Holati:</b> {previewPost.condition}</p>
-            <p><b>Narxi:</b> {previewPost.price}</p>
-            <p><b>Shahar:</b> {previewPost.city}</p>
-            <p><b>Kontakt:</b> {previewPost.contact}</p>
-            <p><b>Tavsif:</b> {previewPost.description}</p>
+            <p><b>Состояние:</b> {previewPost.condition}</p>
+            <p><b>Цена:</b> {previewPost.price}</p>
+            <p><b>Город:</b> {previewPost.city}</p>
+            <p><b>Контакт:</b> {previewPost.contact}</p>
+            <p><b>Описание:</b> {previewPost.description}</p>
 
             <div style={{ display: "flex", flexWrap: "wrap", gap: 10 }}>
               {previewPost.photos?.map((photo, idx) => {

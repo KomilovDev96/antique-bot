@@ -66,9 +66,19 @@ web_modules/
 .yarn-integrity
 
 # dotenv environment variable files
+env.local
 .env
 .env.*
 !.env.example
+
+# Local catalog uploads and generated development artifacts
+uploads/catalog/
+mobile/.codex/
+mobile/graphify-out/
+mobile/expo-qr*.png
+graphify-out/cache/
+graphify-out/memory/
+graphify-out/2026-*/
 
 # parcel-bundler cache (https://parceljs.org/)
 .cache

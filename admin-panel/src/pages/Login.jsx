@@ -10,11 +10,11 @@ export default function Login() {
     try {
       const res = await axiosClient.post("/auth/login", values);
       localStorage.setItem("token", res.data.token);
-      message.success("Tizimga kirildi!");
+      message.success("Вход выполнен!");
       window.location.href = "/dashboard";
     } catch (err) {
       message.error(
-        err.response?.data?.message || "Login yoki parol noto‘g‘ri"
+        err.response?.data?.message || "Неверный логин или пароль"
       );
     } finally {
       setLoading(false);
@@ -31,19 +31,19 @@ export default function Login() {
         background: "#f5f5f5",
       }}
     >
-      <Card title="🔐 Admin Login" style={{ width: 350 }}>
+      <Card title="🔐 Вход в админ-панель" style={{ width: 350 }}>
         <Form layout="vertical" onFinish={onFinish}>
           <Form.Item
             name="username"
-            label="Username"
-            rules={[{ required: true, message: "Login kiriting!" }]}
+            label="Логин"
+            rules={[{ required: true, message: "Введите логин" }]}
           >
             <Input />
           </Form.Item>
           <Form.Item
             name="password"
-            label="Parol"
-            rules={[{ required: true, message: "Parol kiriting!" }]}
+            label="Пароль"
+            rules={[{ required: true, message: "Введите пароль" }]}
           >
             <Input.Password />
           </Form.Item>
@@ -53,7 +53,7 @@ export default function Login() {
             loading={loading}
             block
           >
-            Kirish
+            Войти
           </Button>
         </Form>
       </Card>
